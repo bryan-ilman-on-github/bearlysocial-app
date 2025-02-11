@@ -49,15 +49,17 @@ class _HeroSectionState extends ConsumerState<HeroSection> {
       },
       context: context,
       onSuccess: (_) {
-        setState(() => _emailAddrErrTxt = null);
+        _emailAddrErrTxt = null;
         ref.read(setAuthEmailAddr)(emailAddr);
       },
       onBadRequest: (response) {
-        setState(() => _emailAddrErrTxt = response['message']);
+        _emailAddrErrTxt = response['message'];
       },
     );
 
-    _canInvokeCallback = true;
+    setState(() {
+      _canInvokeCallback = true;
+    });
   }
 
   @override
@@ -93,8 +95,12 @@ class _HeroSectionState extends ConsumerState<HeroSection> {
           callbackFunction: ref.watch(authEmailAddr).isEmpty
               ? _canInvokeCallback
                   ? () {
-                      _canInvokeCallback = false;
-                      _requestOTP();
+                      setState(() {
+                        _canInvokeCallback = false;
+                      });
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _requestOTP();
+                      });
                     }
                   : null
               : null,

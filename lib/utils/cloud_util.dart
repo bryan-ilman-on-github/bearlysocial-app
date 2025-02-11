@@ -77,12 +77,12 @@ class CloudUtility {
     }
 
     request.headers['Authorization'] = 'Bearer $token';
-    final response = await _parseResponse(await request.send());
+    final response = await request.send();
 
     if (response.statusCode == StatusCode.OK) {
-      onSuccess(response);
+      onSuccess(await _decodePayload(response));
     } else if (response.statusCode == StatusCode.BAD_REQUEST) {
-      onBadRequest(response);
+      onBadRequest(await _decodePayload(response));
     } else if (response.statusCode == StatusCode.UNAUTHORIZED) {
       _ref.read(setAuthStatus)(false);
     } else {
@@ -119,7 +119,7 @@ class CloudUtility {
     }
   }
 
-  static Future<dynamic> _parseResponse(http.StreamedResponse response) async {
+  static Future<dynamic> _decodePayload(http.StreamedResponse response) async {
     final contentType = response.headers['content-type'];
 
     if (contentType != null && contentType.contains('application/json')) {

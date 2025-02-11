@@ -1,14 +1,14 @@
 import 'dart:convert';
 
-import 'package:bearlysocial/providers/statuses_pod.dart';
-import 'package:bearlysocial/views/buttons/splash_btn.dart';
 import 'package:bearlysocial/constants/cloud_urls.dart';
 import 'package:bearlysocial/constants/db_key.dart';
 import 'package:bearlysocial/constants/design_tokens.dart';
 import 'package:bearlysocial/constants/http_methods.dart';
+import 'package:bearlysocial/providers/statuses_pod.dart';
 import 'package:bearlysocial/providers/txts_pod.dart';
 import 'package:bearlysocial/utils/cloud_util.dart';
 import 'package:bearlysocial/utils/local_db_util.dart';
+import 'package:bearlysocial/views/buttons/splash_btn.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
