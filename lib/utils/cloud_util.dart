@@ -54,21 +54,18 @@ class CloudUtility {
 
     http.BaseRequest request;
 
-    if (method == 'POST' || method == 'PUT') {
+    if (image != null) {
       request = http.MultipartRequest(method, url);
 
-      if (body != null) {
-        (request as http.MultipartRequest).fields['json'] = jsonEncode(body);
-      }
-      if (image != null) {
-        (request as http.MultipartRequest).files.add(
-              http.MultipartFile.fromBytes(
-                'image',
-                await image.readAsBytes(),
-                contentType: MediaType('image', 'jpeg'),
-              ),
-            );
-      }
+      (request as http.MultipartRequest).files.add(
+            http.MultipartFile.fromBytes(
+              'image',
+              await image.readAsBytes(),
+              contentType: MediaType('image', 'jpeg'),
+            ),
+          );
+
+      if (body != null) request.fields['json'] = jsonEncode(body);
     } else {
       request = http.Request(method, url);
       request.headers['Content-Type'] = 'application/json';

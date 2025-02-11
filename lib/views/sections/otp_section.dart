@@ -24,7 +24,7 @@ class _OTPsectionState extends ConsumerState<OTPsection> {
   bool _canInvokeCallback = true;
 
   final List<String> _otp = List.filled(6, '');
-  String _otpErrorText = '';
+  String _otpErrorText = ''; // Used in Text(), so it can't be null.
 
   void _validateOTP() async {
     await CloudUtility.sendRequest(
@@ -36,18 +36,20 @@ class _OTPsectionState extends ConsumerState<OTPsection> {
       },
       context: context,
       onSuccess: (response) async {
-        await CloudUtility.sendRequest(
-          endpoint: DigitalOceanSpacesURL.generateURL(response['uid']),
-          method: HTTPmethod.GET.name,
-          context: context,
-          onSuccess: (photo) {
-            LocalDatabaseUtility.insertTransaction(
-              key: DatabaseKey.photo.name,
-              value: base64Encode(photo),
-            );
-          },
-          onBadRequest: (_) {},
-        );
+        _otpErrorText = '';
+
+        // await CloudUtility.sendRequest(
+        //   endpoint: DigitalOceanSpacesURL.generateURL(response['uid']),
+        //   method: HTTPmethod.GET.name,
+        //   context: context,
+        //   onSuccess: (photo) {
+        //     LocalDatabaseUtility.insertTransaction(
+        //       key: DatabaseKey.photo.name,
+        //       value: base64Encode(photo),
+        //     );
+        //   },
+        //   onBadRequest: (_) {},
+        // );
 
         LocalDatabaseUtility.insertTransactions(
           pairs: Map<String, String>.from(
@@ -66,13 +68,13 @@ class _OTPsectionState extends ConsumerState<OTPsection> {
         ref.read(setAuthEmailAddr)('');
       },
       onBadRequest: (response) {
-        setState(() {
-          _otpErrorText = response['message'];
-        });
+        _otpErrorText = response['message'];
       },
     );
 
-    _canInvokeCallback = true;
+    setState(() {
+      _canInvokeCallback = true;
+    });
   }
 
   void _goBack() {
@@ -83,123 +85,133 @@ class _OTPsectionState extends ConsumerState<OTPsection> {
 
   @override
   Widget build(context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Please check your email.',
-          maxLines: 2,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 32.0,
-              ),
-        ),
-        Text(
-          "We've sent a one-time password (OTP) to ${ref.watch(authEmailAddr)}.",
-          maxLines: 4,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: WhiteSpaceSize.medium),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: _otp.asMap().entries.map((entry) {
-            final int index = entry.key;
+    return PopScope(
+      canPop: false, // Prevent automatic pop.
+      onPopInvokedWithResult: (didPop, result) {
+        _goBack();
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Please check your email.',
+            maxLines: 2,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 32.0,
+                ),
+          ),
+          Text(
+            "We've sent a one-time password (OTP) to ${ref.watch(authEmailAddr)}.",
+            maxLines: 4,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: WhiteSpaceSize.medium),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: _otp.asMap().entries.map((entry) {
+              final int index = entry.key;
 
-            return SizedBox(
-              width: SideSize.small * 1.5,
-              child: TextField(
-                enabled: _canInvokeCallback,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(1),
-                  FilteringTextInputFormatter.allow(RegExp('[0-9]')),
-                ],
-                textAlign: TextAlign.center,
-                onChanged: _canInvokeCallback
-                    ? (value) {
-                        _otp[index] = value;
+              return SizedBox(
+                width: SideSize.small * 1.5,
+                child: TextField(
+                  enabled: _canInvokeCallback,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(1),
+                    FilteringTextInputFormatter.allow(RegExp('[0-9A-Z]')),
+                  ],
+                  textAlign: TextAlign.center,
+                  onChanged: _canInvokeCallback
+                      ? (value) {
+                          _otp[index] = value;
 
-                        if (value.isNotEmpty && index < _otp.length - 1) {
-                          FocusScope.of(context).nextFocus();
-                        } else if (value.isNotEmpty) {
-                          _canInvokeCallback = false;
-                          _validateOTP();
-                        } else if (value.isEmpty && index > 0) {
-                          FocusScope.of(context).previousFocus(); // TODO: back.
+                          if (value.isNotEmpty && index < _otp.length - 1) {
+                            FocusScope.of(context).nextFocus();
+                          } else if (value.isNotEmpty) {
+                            setState(() {
+                              _canInvokeCallback = false;
+                            });
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _validateOTP();
+                            });
+                          } else if (value.isEmpty && index > 0) {
+                            FocusScope.of(context).previousFocus();
+                          }
                         }
-                      }
-                    : null,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: _canInvokeCallback
-                          ? null
-                          : Theme.of(context).highlightColor,
+                      : null,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: _canInvokeCallback
+                            ? null
+                            : Theme.of(context).highlightColor,
+                      ),
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.zero,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(CurvatureSize.large),
+                      borderSide: BorderSide(
+                        width: ThicknessSize.small,
+                        color: Theme.of(context).dividerColor,
+                      ),
                     ),
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.zero,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(CurvatureSize.large),
-                    borderSide: BorderSide(
-                      width: ThicknessSize.small,
-                      color: Theme.of(context).dividerColor,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(CurvatureSize.large),
+                      borderSide: BorderSide(
+                        width: ThicknessSize.medium,
+                        color: Theme.of(context).focusColor,
+                      ),
                     ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(CurvatureSize.large),
-                    borderSide: BorderSide(
-                      width: ThicknessSize.medium,
-                      color: Theme.of(context).focusColor,
-                    ),
-                  ),
-                  disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(CurvatureSize.large),
-                    borderSide: BorderSide(
-                      width: ThicknessSize.small,
-                      color: Theme.of(context).highlightColor,
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(CurvatureSize.large),
+                      borderSide: BorderSide(
+                        width: ThicknessSize.small,
+                        color: Theme.of(context).highlightColor,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: WhiteSpaceSize.verySmall),
-        _canInvokeCallback
-            ? Text(
-                _otpErrorText.isEmpty ? '\n' : _otpErrorText,
-                maxLines: 4,
-                style: Theme.of(context).textTheme.bodySmall,
-              )
-            : Container(
-                margin: const EdgeInsets.only(left: MarginSize.small),
-                width: SideSize.verySmall,
-                height: SideSize.verySmall,
-                child: CircularProgressIndicator(
-                  strokeWidth: ThicknessSize.large,
-                  color: Theme.of(context).focusColor,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: WhiteSpaceSize.verySmall),
+          _canInvokeCallback
+              ? Text(
+                  _otpErrorText.isEmpty ? '\n' : _otpErrorText,
+                  maxLines: 4,
+                  style: Theme.of(context).textTheme.bodySmall,
+                )
+              : Container(
+                  margin: const EdgeInsets.only(left: MarginSize.small),
+                  width: SideSize.verySmall,
+                  height: SideSize.verySmall,
+                  child: CircularProgressIndicator(
+                    strokeWidth: ThicknessSize.large,
+                    color: Theme.of(context).focusColor,
+                  ),
+                ),
+          const SizedBox(height: WhiteSpaceSize.veryLarge),
+          Row(
+            children: [
+              SplashButton(
+                verticalPadding: PaddingSize.verySmall,
+                callbackFunction: _goBack,
+                buttonColor: Theme.of(context).scaffoldBackgroundColor,
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_back),
+                    const SizedBox(width: WhiteSpaceSize.verySmall),
+                    Text(
+                      'Go Back',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(width: MarginSize.small),
+                  ],
                 ),
               ),
-        const SizedBox(height: WhiteSpaceSize.veryLarge),
-        Row(
-          children: [
-            SplashButton(
-              verticalPadding: PaddingSize.verySmall,
-              callbackFunction: _goBack,
-              buttonColor: Theme.of(context).scaffoldBackgroundColor,
-              child: Row(
-                children: [
-                  const Icon(Icons.arrow_back),
-                  const SizedBox(width: WhiteSpaceSize.verySmall),
-                  Text(
-                    'Go Back',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(width: MarginSize.small),
-                ],
-              ),
-            ),
-            const Spacer(),
-          ],
-        ),
-      ],
+              const Spacer(),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
